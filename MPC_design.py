@@ -80,18 +80,45 @@ Bd = matrices['Bd']
 Cd = matrices['Cd']
 Dd = matrices['Dd']
 
-x0 = np.array([1, 1, -10, 1, -10, 1]) 
+x = np.array([1, 1, -10, 0, 0, 0]) 
 
-u_lb = 10*np.array([-0.5, -0.5, -0.5])
-u_ub = 10*np.array([0.5, 0.5, 0.5]) 
-N = 10
+u_lb = 1000*np.array([-0.5, -0.5, -0.5])
+u_ub = 1000*np.array([0.5, 0.5, 0.5]) 
+N = 20
 
-Q = np.eye(6)
+Q = 100*np.eye(6)
 R = np.eye(3)
-P = np.eye(6)*100
+P = np.eye(6)*1000
 
-x_bar_cd, u_bar_cd = solve_mpc_condensed(Ad, Bd, Q, R, P, x0, N, u_lb, u_ub)
+noise_std = 0.000001*np.eye(6)
+distnaces = []
+force_applied = []
+
+for i in range(1000):
+    _, u_bar_cd = solve_mpc_condensed(Ad, Bd, Q, R, P, x, N, u_lb, u_ub)
+    x = np.dot(Ad, x.T) + np.dot(Bd, u_bar_cd[0,:].T) # + np.random.multivariate_normal(np.zeros(6), noise_std)
+    # y = np.dot(Cd, x) + np.dot(Dd, u_bar_cd[0,:])
+    distnaces.append(np.linalg.norm(x[0:3]))
+    force_applied.append(np.linalg.norm(u_bar_cd[0,:]))
+    
 
 # Calculate the Euclidean distance of the first three elements of the states over time
-print(u_bar_cd.shape, x_bar_cd.shape)
-force = np.euclidean_distances(x_bar_cd[:, :3], x0[:3])
+
+import matplotlib.pyplot as plt
+
+plt.figure()
+plt.plot(distnaces, marker='o')
+plt.title('Euclidean Distance of First Three States Over Time')
+plt.xlabel('Time Step')
+plt.ylabel('Euclidean Distance')
+plt.grid()
+plt.show()
+
+# Plot the Euclidean distances
+plt.figure()
+plt.plot(force_applied, marker='o')
+plt.title('Euclidean Distance of Control Inputs Over Time')
+plt.xlabel('Time Step')
+plt.ylabel('Euclidean Distance')
+plt.grid()
+plt.show()
