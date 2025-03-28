@@ -2,6 +2,7 @@ import numpy as np
 from quadprog import solve_qp
 from scipy.signal import lsim, StateSpace
 from scipy.linalg import expm
+import pickle
 import matplotlib.pyplot as plt
 
 # Double integrator dynamics
@@ -54,6 +55,11 @@ Ad = expm_ABCDc[:dim_x, :dim_x]
 Bd = expm_ABCDc[:dim_x, (dim_x+dim_y):]
 Cd = expm_ABCDc[dim_x:(dim_x+dim_y), :dim_x]
 Dd = expm_ABCDc[dim_x:(dim_x+dim_y), (dim_x+dim_y):] 
+
+# Save Ad, Bd, Cd, Dd as Python objects
+
+with open('state_space_matrices.pkl', 'wb') as f:
+    pickle.dump({'Ad': Ad, 'Bd': Bd, 'Cd': Cd, 'Dd': Dd}, f)
 
 # Define initial state and input
 x0 = np.array([0, 0, 0, 0, 0, 0])  # Initial state
