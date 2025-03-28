@@ -2,6 +2,7 @@ import cvxpy as cp
 import numpy as np
 from quadprog import solve_qp
 from qpsolvers import solve_qp
+from control import dare
 import pickle
 
 def gen_prediction_matrices(Ad, Bd, N):
@@ -56,6 +57,7 @@ def gen_constraint_matrices(u_lb, u_ub, N):
     
     return Gu_bar, gu_bar
 
+
 def solve_mpc_condensed(Ad, Bd, Q, R, P, x0, N, u_lb, u_ub):
     dim_x = Ad.shape[0]
     dim_u = Bd.shape[1]
@@ -82,13 +84,15 @@ Dd = matrices['Dd']
 
 x = np.array([1, 1, -10, 0, 0, 0]) 
 
-u_lb = 1000*np.array([-0.5, -0.5, -0.5])
-u_ub = 1000*np.array([0.5, 0.5, 0.5]) 
+u_lb = 10*np.array([-0.5, -0.5, -0.5])
+u_ub = 10*np.array([0.5, 0.5, 0.5]) 
 N = 20
 
 Q = 100*np.eye(6)
 R = np.eye(3)
-P = np.eye(6)*1000
+#P = np.eye(6)*1000
+P_inf, _, K_inf = dare(Ad, Bd, Q, R)
+P = P_inf
 
 noise_std = 0.000001*np.eye(6)
 distnaces = []
