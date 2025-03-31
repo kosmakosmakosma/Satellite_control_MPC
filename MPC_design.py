@@ -4,6 +4,8 @@ from quadprog import solve_qp
 from qpsolvers import solve_qp
 from control import dare
 import pickle
+import gurobipy as gp
+from gurobipy import GRB
 
 def gen_prediction_matrices(Ad, Bd, N):
     dim_x = Ad.shape[0]
@@ -11,7 +13,6 @@ def gen_prediction_matrices(Ad, Bd, N):
     
     T = np.zeros(((dim_x * (N + 1), dim_x)))
     S = np.zeros(((dim_x * (N + 1), dim_u * N)))
-    
     # Condensing
     power_matricies = []    # power_matricies = [I, A, A^2, ..., A^N]
     power_matricies.append(np.eye(dim_x))
@@ -81,7 +82,7 @@ Ad = matrices['Ad']
 Bd = matrices['Bd']
 Cd = matrices['Cd']
 Dd = matrices['Dd']
-
+print(Ad.shape, Bd.shape, Cd.shape, Dd.shape)
 x = np.array([1, 1, -10, 0, 0, 0]) 
 
 u_lb = 10*np.array([-0.5, -0.5, -0.5])

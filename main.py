@@ -10,8 +10,8 @@ dim_x = 6
 dim_u = 3
 dim_y = 3
 
-miu = 1
-a = 1
+miu = 398600.4418
+a = 6778
 n = (miu/a**3)**0.5
 
 # CONTINUOUS-TIME SYSTEM
