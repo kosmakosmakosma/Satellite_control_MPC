@@ -90,7 +90,17 @@ def simulate_discrete_system(Ad, Bd, Cd, Dd, x0, u_disc, t_disc):
     # Simulate the discrete-time system
     y_out_disc = []
     x_out_disc = []
+    within_ellipsoid = True
     for i in range(len(t_disc)):
+        if not check_point_within_ellipsoid(P, c_max, x0):
+            within_ellipsoid = False
+        y_out_disc.append(Cd @ x0 + Dd @ u_disc[i])
+        x_out_disc.append(x0)
+        x0 = Ad @ x0 + Bd @ u_disc[i]
+    if within_ellipsoid:
+        print("The system stays within Xf.")
+    else:
+        print("The system does not stay within Xf.")
         y_out_disc.append(Cd @ x0 + Dd @ u_disc[i])
         x_out_disc.append(x0)
         x0 = Ad @ x0 + Bd @ u_disc[i]
