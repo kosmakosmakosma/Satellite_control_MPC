@@ -56,7 +56,10 @@ def get_point_within_ellipsoid(P, c_max, dim_x, x_max):   # Generate a random po
         if np.all(np.abs(x) <= x_max):
             return x  # Return the point if it's within the state constraints
 def check_point_within_ellipsoid(P, c_max, x):
-    return x.T @ P @ x <= c_max
+    within_xf = False
+    if x.T @ P @ x <= c_max:
+        within_xf = True
+    return within_xf
 
 def plot_ellipsoid2():  # Plot the ellipsoid for the first 3 states
     # -------------------------

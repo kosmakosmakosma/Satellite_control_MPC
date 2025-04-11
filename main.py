@@ -106,6 +106,7 @@ def simulate_discrete_system(Ad, Bd, Cd, Dd, x0, u_disc, t_disc):
         x0 = Ad @ x0 + Bd @ u_disc[i]
     y_out_disc = np.array(y_out_disc)
     x_out_disc = np.array(x_out_disc)
+    
     # Plot the results
     plt.figure(figsize=(10, 6))
     for j in range(y_out_disc.shape[1]):
