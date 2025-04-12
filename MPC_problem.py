@@ -5,24 +5,58 @@ import matplotlib.pyplot as plt
 from control import dare
 from scipy.linalg import solve_discrete_are
 from invariant_set import calculate_ellipsoid, get_point_within_ellipsoid, check_point_within_ellipsoid
+from control import place
+import sys
+import os
+from scipy.io import loadmat
+# Get the directory of the current script
+script_dir = os.path.dirname(os.path.abspath(__file__))
 
-
-dim_x = 6    # number of states
+dim_x = 6*2    # number of states
 dim_u = 3    # number of inputs
 
-with open('state_space_matrices.pkl', 'rb') as f:   # Load state matrices
-        matrices = pickle.load(f)
+# with open(script_dir+'\state_space_matrices.pkl', 'rb') as f:   # Load state matrices
+#         matrices = pickle.load(f)
 
-Ad = matrices['Ad']
-Bd = matrices['Bd']
-Cd = matrices['Cd']
-Dd = matrices['Dd']
+# Ad = matrices['Ad']
+# Bd = matrices['Bd']
+# Cd = matrices['Cd']
+# Dd = matrices['Dd']
+
+# desired_poles = np.array([0.1 + 0.1j, 0.1 - 0.1j, 0.2 + 0.2j, 0.2 - 0.2j, 0.3 + 0.3j, 0.3 - 0.3j])
+# L = place(Ad.T, Cd.T, desired_poles).T
+
+# Load the MATLAB file containing the observer gain matrix
+mat_data = loadmat(script_dir + '/observer_gain_L.mat')
+mat_data_2 = loadmat(script_dir + '/state_space_matrices.mat')
+
+# Extract the observer gain matrix and convert it to a numpy array
+L = np.array(mat_data['L'])
+Ad = np.array(mat_data_2['Ad'])
+Bd = np.array(mat_data_2['Bd'])
+Cd = np.array(mat_data_2['Cd'])
+Dd = np.zeros((dim_u, dim_u))
+
+
+# print(L)
+
+
+# observer_poles = np.linalg.eigvals(Ad - L @ Cd)
+# print("Poles of A - LC:", observer_poles)
+
+
+A_tilda = np.block([
+    [Ad, np.zeros_like(Ad)],
+    [np.zeros_like(Ad), Ad - L @ Cd]
+])
+
+B_tilda = np.block([[Bd], [Bd]])
 
 Q = np.eye(dim_x)
 R = np.eye(dim_u)
 
 # Solve discrete ARE: P = solve_discrete_are(A, B, Q, R)
-P, _, K = dare(Ad, Bd, Q, R)
+P, _, K = dare(A_tilda, B_tilda, Q, R)
 K = -K
 
 # Define constraints.
@@ -37,7 +71,7 @@ print("c_max: ", c_max)
 # Generate a random point within X_f
 #x0 = get_point_within_ellipsoid(P, c_max, dim_x, x_max)
 #print("x0: ", x0)
-x0 = np.array([100000, 1000, 1000, 20, 20, 20])  # Example initial state
+x0 = np.array([100000, 1000, 1000, 20, 20, 20, 100000, 1000, 1000, 20, 20, 20])  # Example initial state
 # Constraints for states and inputs (example bounds)
 x_lb = -x_max * np.ones(dim_x)
 x_ub =  x_max * np.ones(dim_x)
@@ -133,5 +167,5 @@ def plot_results(Xs, Us, dim_x, dim_u):
     plt.tight_layout()
     plt.show()
 
-Xs, Us = solve_mpc(dim_x, dim_u, N, x0, Ad, Bd, Cd, Dd, Q, R, P, c_max)
+Xs, Us = solve_mpc(dim_x, dim_u, N, x0, A_tilda, B_tilda, Cd, Dd, Q, R, P, c_max)
 plot_results(Xs, Us, dim_x, dim_u)

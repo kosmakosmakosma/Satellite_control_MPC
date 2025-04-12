@@ -1,5 +1,7 @@
 
-n = 0.01;
+miu = 398600.4418;
+a = 6778;
+n = (miu/a^3)^0.5;
 Ac = [[0, 0, 0, 1, 0, 0];
                [0, 0, 0, 0, 1, 0];
                [0, 0, 0, 0, 0, 1]; 
@@ -18,18 +20,33 @@ Cc = [[1, 0, 0, 0, 0, 0];
                [0, 1, 0, 0, 0, 0];
                [0, 0, 1, 0, 0, 0]];
 
-% Specify the path to the .pkl file
+
 % Define the sampling time
-Ts = 0.01; % Replace with your desired sampling time
+Ts = 1; % Replace with your desired sampling time
 
 % Transform the continuous system to a discrete system using the Tustin method
 sys_c = ss(Ac, Bc, Cc, 0); % Continuous-time state-space system
-sysd = c2d(sys_c, Ts);
+sysd = c2d(sys_c, Ts, 'tustuin');
 [Ad, Bd, Cd, Dd] = ssdata(sysd); % Discrete-time state-space matrices
+
+% Save the discrete-time state-space matrices Ad, Bd, Cd, and Dd as a .mat file
+save('state_space_matrices.mat', 'Ad', 'Bd', 'Cd', 'Dd');
+
+% Load the state-space matrices from the .pkl file
+% filename = 'state_space_matrices.pkl'; % Replace with the correct path to your .pkl file
+% currentFolder = fileparts(mfilename('fullpath'));
+% filename = fullfile(currentFolder, 'state_space_matrices.pkl');
+% data = py.pickle.load(py.open(filename, 'rb'));
+
+% Extract Ad, Bd, Cd, and Dd from the loaded data
+% Ad = double(data{'Ad'});
+% Bd = double(data{'Bd'});
+% Cd = double(data{'Cd'});
+% Dd = double(data{'Dd'});
 
 % Display the matrices
 % Define the desired pole locations
-desiredPoles = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]; % Replace with your desired pole locations
+desiredPoles = [0.1, 0.1, 0.1, 0.2, 0.2, 0.2]; % Replace with your desired pole locations
 
 
 % Compute the observer gain L using the place function
@@ -45,3 +62,6 @@ observerPoles = eig(Ad - L * Cd);
 % Display the poles
 disp('Poles of (Ad - L*Cd):');
 disp(observerPoles);
+
+% Save the observer gain matrix L as a .mat file
+save('observer_gain_L.mat', 'L');

@@ -4,8 +4,8 @@ from quadprog import solve_qp
 from qpsolvers import solve_qp
 from control import dare
 import pickle
-import gurobipy as gp
-from gurobipy import GRB
+# import gurobipy as gp
+# from gurobipy import GRB
 from control import place
 from pprint import pprint
 
