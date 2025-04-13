@@ -6,17 +6,18 @@ import pickle
 from control import dare
 
 
-def calculate_ellipsoid(u_max, x_max, P, K, dim_x, dim_u):
+def calculate_ellipsoid(u_ub, x_ub, P, K, dim_x, dim_u):
     Hx = np.vstack([np.eye(dim_x), -np.eye(dim_x)])  # (12 x 6)
-    hx = x_max * np.ones(2*dim_x)
-
+    hx = np.hstack([x_ub, x_ub])
     # Input constraints: |u_j| <= u_max for all j
     Hu = np.vstack([np.eye(dim_u), -np.eye(dim_u)])  # (6 x 3)
-    hu = u_max * np.ones(2*dim_u)
+    hu = np.hstack([u_ub, u_ub])  # (6 x 1)
 
     # Effective input constraint: u = -K x  =>   Hu_eff x <= hu
     Hu_eff = Hu @ (-K)   # (6 x 6)
     # Combined constraint set for x:
+    print(Hx)
+    print(Hu_eff)
     A_combined = np.vstack([Hx, Hu_eff])
     b_combined = np.hstack([hx, hu])
 
@@ -143,12 +144,17 @@ if __name__ == "__main__":
 
     #Define constraints.
    
-    x_max = 1000000000
-    u_max = 100
+    #x_max = 1000000000
+    #u_max = 100
 
-    c_max = calculate_ellipsoid(u_max, x_max, P, K, dim_x, dim_u)
+    x_ub =  np.array([300, 300, 150, 1, 1, 1])
+    x_lb = -x_ub
+    u_ub = np.array([0.1, 0.1, 0.1])
+    u_lb = -u_ub
+
+    c_max = calculate_ellipsoid(u_ub, x_ub, P, K, dim_x, dim_u)
     print("c_max: ", c_max)
-    x_0 = get_point_within_ellipsoid(P, c_max, dim_x, x_max)
+    x_0 = get_point_within_ellipsoid(P, c_max, dim_x, np.max(x_ub))
     print("x_0: ", x_0)
     print("Point within allipsoid? ", check_point_within_ellipsoid(P, c_max, x_0))
     print("Random point within the ellipsoid:", x_0.T @ P @ x_0 < c_max)

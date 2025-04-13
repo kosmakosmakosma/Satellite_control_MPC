@@ -54,7 +54,6 @@ B_tilda = np.block([
     [Bd],
     [np.zeros((dim_x_dyn, dim_u))]
 ])
-print("B_tilda: ", B_tilda)
 Q = np.eye(dim_x_dyn)
 R = np.eye(dim_u)
 
@@ -63,27 +62,25 @@ P, _, K = dare(Ad, Bd, Q, R)
 K = -K
 
 # Define constraints.
-x_max = 10000000
-u_max = 500
+#x_max = 10000000
+#u_max = 500
+
+
+
+
+x0 = np.array([100, -100, 30, 2, 1, 1, 0, 0, 0, 0, 0, 0])  # Initial state
+
+x_ub =  np.array([200, 200, 150, 10, 10, 10])   # Position and velocity upper constraints
+x_lb = -x_ub
+u_ub = np.array([0.5, 0.5, 0.5])    # Acceleration upper constraints. Slightly unrealistic but for testing purposes
+u_lb = -u_ub
 
 # Calculate the terminal set X_f
-c_max =  calculate_ellipsoid(u_max, x_max, P, K, dim_x_dyn, dim_u)
+c_max =  calculate_ellipsoid(u_ub, x_ub, P, K, dim_x_dyn, dim_u)
 #c_max = 10
 print("c_max: ", c_max)
 
-# Generate a random point within X_f
-#x0 = get_point_within_ellipsoid(P, c_max, dim_x, x_max)
-#print("x0: ", x0)
-x0 = np.array([100000, 1000, 1000, 20, 20, 20, 1000, 1000, 1000, 1000, 1000, 1000])  # Example initial state
-# Constraints for states and inputs (example bounds)
-x_lb = -x_max * np.ones(dim_x_dyn)
-x_ub =  x_max * np.ones(dim_x_dyn)
-u_lb = -u_max * np.ones(dim_u)
-u_ub =  u_max * np.ones(dim_u)
-
-
-# Prediction horizon and initial state
-N = 45       # MPC horizon length
+N = 50       # MPC horizon length
 
 def solve_mpc(dim_x, dim_u, N, x0, Ad, Bd, Cd, Dd, Q, R, P, c_max):
     # ==============================
@@ -136,7 +133,7 @@ def solve_mpc(dim_x, dim_u, N, x0, Ad, Bd, Cd, Dd, Q, R, P, c_max):
     Us = np.array([u_var[k].value for k in range(N)])   # Optimal control trajectory
     Xs = np.array([x_var[k].value for k in range(N + 1)])   # Optimal state trajectory
     # Check terminal constraint value (should be <= c_max)
-    print("Terminal state within Xf: ", check_point_within_ellipsoid(P, c_max, x_var[N][:6].value))
+    #print("Terminal state within Xf: ", check_point_within_ellipsoid(P, c_max, x_var[N][:6].value))
     return Xs, Us
 
 def plot_results(Xs, Us, dim_x, dim_u):
@@ -170,6 +167,7 @@ def plot_results(Xs, Us, dim_x, dim_u):
     plt.tight_layout()
     plt.show()
 Xs, Us = solve_mpc(dim_x, dim_u, N, x0, A_tilda, B_tilda, Cd, Dd, Q, R, P, c_max)
+print(Xs)
 plot_results(Xs, Us, dim_x, dim_u)
 
 # Export Xs to a file for later use
