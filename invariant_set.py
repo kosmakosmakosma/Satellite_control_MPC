@@ -16,8 +16,6 @@ def calculate_ellipsoid(u_ub, x_ub, P, K, dim_x, dim_u):
     # Effective input constraint: u = -K x  =>   Hu_eff x <= hu
     Hu_eff = Hu @ (-K)   # (6 x 6)
     # Combined constraint set for x:
-    print(Hx)
-    print(Hu_eff)
     A_combined = np.vstack([Hx, Hu_eff])
     b_combined = np.hstack([hx, hu])
 

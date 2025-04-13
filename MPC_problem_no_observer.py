@@ -12,7 +12,7 @@ from scipy.io import loadmat
 # Get the directory of the current script
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-dim_x = 6*2    # number of states
+dim_x = 6    # number of states
 dim_x_dyn = 6    # number of states in the dynamics
 dim_u = 3    # number of inputs
 
@@ -45,18 +45,12 @@ Dd = np.array(mat_data_2['Dd'])
 # print("Poles of A - LC:", observer_poles)
 
 
-A_tilda = np.block([
-    [Ad, np.zeros_like(Ad)],
-    [np.zeros_like(Ad), Ad - L @ Cd]
-])
+#A_tilda = np.block([[Ad, np.zeros_like(Ad)], [np.zeros_like(Ad), Ad - L @ Cd]])
 
-B_tilda = np.block([
-    [Bd],
-    [Bd]
-])
+#B_tilda = np.block([[Bd],[Bd]])
 
-#A_tilda = Ad
-#B_tilda = Bd
+A_tilda = Ad
+B_tilda = Bd
 
 Q = np.eye(dim_x_dyn)
 R = np.eye(dim_u)
@@ -72,12 +66,11 @@ K = -K
 
 
 
+x0 = np.array([100, -100, 30, 2, 1, 1])  # Initial state
 
-x0 = np.array([100, -100, 30, 2, 1, 1, 15, 15, 15, 2, 2, 2])  # Initial state
-
-x_ub =  np.array([1000, 1000, 1000, 1000, 1000, 1000])  # Position and velocity upper constraints
+x_ub =  np.array([200, 200, 150, 10, 10, 10])  # Position and velocity upper constraints
 x_lb = -x_ub
-u_ub = np.array([1000, 1000, 1000])    # Acceleration upper constraints. Slightly unrealistic but for testing purposes
+u_ub = np.array([0.5, 0.5, 0.5])     # Acceleration upper constraints. Slightly unrealistic but for testing purposes
 u_lb = -u_ub
 
 # Calculate the terminal set X_f
@@ -109,21 +102,21 @@ def solve_mpc(dim_x, dim_u, N, x0, Ad, Bd, Cd, Dd, Q, R, P, c_max):
         constraints.append(x_var[k+1] == Ad @ x_var[k] + Bd @ u_var[k])
         
         # State constraints: x_lb <= x[k] <= x_ub 
-        constraints.append(x_var[k][:6] + x_var[k][6:] >= x_lb[:6])
-        constraints.append(x_var[k][:6] + x_var[k][6:] <= x_ub[:6])
+        constraints.append(x_var[k][:6] >= x_lb[:6])
+        constraints.append(x_var[k][:6] <= x_ub[:6])
         
         # Input constraints: u_lb <= u[k] <= u_ub
         constraints.append(u_var[k] >= u_lb)
         constraints.append(u_var[k] <= u_ub)
         
         # Stage cost: quadratic cost for state and input
-        cost += cp.quad_form(x_var[k][:6] + x_var[k][6:], Q) + cp.quad_form(u_var[k], R)
+        cost += cp.quad_form(x_var[k][:6], Q) + cp.quad_form(u_var[k], R)
 
     # Terminal constraints:
     # (a) Terminal state constraint: the terminal state must lie within the ellipsoidal terminal set.
-    constraints.append(cp.quad_form(x_var[N][:6] + x_var[N][6:], P) <= c_max)
+    constraints.append(cp.quad_form(x_var[N][:6], P) <= c_max)
     # (b) Optional: Add a terminal cost term. Here we use the same matrix P as the terminal weight.
-    cost += cp.quad_form(x_var[N][:6] + x_var[N][6:], P)
+    cost += cp.quad_form(x_var[N][:6], P)
 
     # ==============================
     # 3. Formulate and Solve the Optimization Problem
@@ -172,15 +165,12 @@ def plot_results(Xs, Us, dim_x, dim_u):
     plt.tight_layout()
     plt.show()
 Xs, Us = solve_mpc(dim_x, dim_u, N, x0, A_tilda, B_tilda, Cd, Dd, Q, R, P, c_max)
-#print(Xs)
 plot_results(Xs, Us, dim_x, dim_u)
 
 # Export Xs to a file for later use
-output_file_observer = script_dir + '/Xs_data_observer.npy'
-np.save(output_file_observer, Xs)
-print(f"Optimal state trajectory Xs has been saved to {output_file_observer}")
 
-#output_file = script_dir + '/Xs_data_.npy'
-#np.save(output_file, Xs)
-#print(f"Optimal state trajectory Xs has been saved to {output_file}")
+
+output_file = script_dir + '/Xs_data_.npy'
+np.save(output_file, Xs)
+print(f"Optimal state trajectory Xs has been saved to {output_file}")
 
