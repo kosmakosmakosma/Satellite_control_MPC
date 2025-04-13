@@ -13,6 +13,7 @@ from scipy.io import loadmat
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 dim_x = 6*2    # number of states
+dim_x_dyn = 6    # number of states in the dynamics
 dim_u = 3    # number of inputs
 
 # with open(script_dir+'\state_space_matrices.pkl', 'rb') as f:   # Load state matrices
@@ -35,8 +36,7 @@ L = np.array(mat_data['L'])
 Ad = np.array(mat_data_2['Ad'])
 Bd = np.array(mat_data_2['Bd'])
 Cd = np.array(mat_data_2['Cd'])
-Dd = np.zeros((dim_u, dim_u))
-
+Dd = np.array(mat_data_2['Dd'])
 
 # print(L)
 
@@ -50,13 +50,16 @@ A_tilda = np.block([
     [np.zeros_like(Ad), Ad - L @ Cd]
 ])
 
-B_tilda = np.block([[Bd], [Bd]])
-
-Q = np.eye(dim_x)
+B_tilda = np.block([
+    [Bd],
+    [np.zeros((dim_x_dyn, dim_u))]
+])
+print("B_tilda: ", B_tilda)
+Q = np.eye(dim_x_dyn)
 R = np.eye(dim_u)
 
 # Solve discrete ARE: P = solve_discrete_are(A, B, Q, R)
-P, _, K = dare(A_tilda, B_tilda, Q, R)
+P, _, K = dare(Ad, Bd, Q, R)
 K = -K
 
 # Define constraints.
@@ -64,23 +67,23 @@ x_max = 10000000
 u_max = 500
 
 # Calculate the terminal set X_f
-c_max =  calculate_ellipsoid(u_max, x_max, P, K, dim_x, dim_u)
+c_max =  calculate_ellipsoid(u_max, x_max, P, K, dim_x_dyn, dim_u)
 #c_max = 10
 print("c_max: ", c_max)
 
 # Generate a random point within X_f
 #x0 = get_point_within_ellipsoid(P, c_max, dim_x, x_max)
 #print("x0: ", x0)
-x0 = np.array([100000, 1000, 1000, 20, 20, 20, 0, 0, 0, 0, 0, 0])  # Example initial state
+x0 = np.array([100000, 1000, 1000, 20, 20, 20, 1000, 1000, 1000, 1000, 1000, 1000])  # Example initial state
 # Constraints for states and inputs (example bounds)
-x_lb = -x_max * np.ones(dim_x)
-x_ub =  x_max * np.ones(dim_x)
+x_lb = -x_max * np.ones(dim_x_dyn)
+x_ub =  x_max * np.ones(dim_x_dyn)
 u_lb = -u_max * np.ones(dim_u)
 u_ub =  u_max * np.ones(dim_u)
 
 
 # Prediction horizon and initial state
-N = 40       # MPC horizon length
+N = 45       # MPC horizon length
 
 def solve_mpc(dim_x, dim_u, N, x0, Ad, Bd, Cd, Dd, Q, R, P, c_max):
     # ==============================
@@ -104,21 +107,21 @@ def solve_mpc(dim_x, dim_u, N, x0, Ad, Bd, Cd, Dd, Q, R, P, c_max):
         constraints.append(x_var[k+1] == Ad @ x_var[k] + Bd @ u_var[k])
         
         # State constraints: x_lb <= x[k] <= x_ub 
-        constraints.append(x_var[k] >= x_lb)
-        constraints.append(x_var[k] <= x_ub)
+        constraints.append(x_var[k][:6] >= x_lb[:6])
+        constraints.append(x_var[k][:6] <= x_ub[:6])
         
         # Input constraints: u_lb <= u[k] <= u_ub
         constraints.append(u_var[k] >= u_lb)
         constraints.append(u_var[k] <= u_ub)
         
         # Stage cost: quadratic cost for state and input
-        cost += cp.quad_form(x_var[k], Q) + cp.quad_form(u_var[k], R)
+        cost += cp.quad_form(x_var[k][:6], Q) + cp.quad_form(u_var[k], R)
 
     # Terminal constraints:
     # (a) Terminal state constraint: the terminal state must lie within the ellipsoidal terminal set.
-    constraints.append(cp.quad_form(x_var[N], P) <= c_max)
+    constraints.append(cp.quad_form(x_var[N][:6], P) <= c_max)
     # (b) Optional: Add a terminal cost term. Here we use the same matrix P as the terminal weight.
-    cost += cp.quad_form(x_var[N], P)
+    cost += cp.quad_form(x_var[N][:6], P)
 
     # ==============================
     # 3. Formulate and Solve the Optimization Problem
@@ -133,7 +136,7 @@ def solve_mpc(dim_x, dim_u, N, x0, Ad, Bd, Cd, Dd, Q, R, P, c_max):
     Us = np.array([u_var[k].value for k in range(N)])   # Optimal control trajectory
     Xs = np.array([x_var[k].value for k in range(N + 1)])   # Optimal state trajectory
     # Check terminal constraint value (should be <= c_max)
-    print("Terminal state within Xf: ", check_point_within_ellipsoid(P, c_max, x_var[N].value))
+    print("Terminal state within Xf: ", check_point_within_ellipsoid(P, c_max, x_var[N][:6].value))
     return Xs, Us
 
 def plot_results(Xs, Us, dim_x, dim_u):
@@ -154,7 +157,7 @@ def plot_results(Xs, Us, dim_x, dim_u):
         # Mark the point where x^T P x < c_max with a vertical dashed line
         label_added = False
         for t in range(N + 1):
-            if Xs[t].T @ P @ Xs[t] < c_max:
+            if Xs[t][:6].T @ P @ Xs[t][:6] < c_max:
                 if not label_added and i == 0:  # Add label only in the first subplot
                     plt.axvline(x=t, color='r', linestyle='--', label="State within X_f")
                     label_added = True
@@ -166,6 +169,11 @@ def plot_results(Xs, Us, dim_x, dim_u):
 
     plt.tight_layout()
     plt.show()
-
 Xs, Us = solve_mpc(dim_x, dim_u, N, x0, A_tilda, B_tilda, Cd, Dd, Q, R, P, c_max)
 plot_results(Xs, Us, dim_x, dim_u)
+
+# Export Xs to a file for later use
+output_file_observer = script_dir + '/Xs_data_observer.npy'
+np.save(output_file_observer, Xs)
+print(f"Optimal state trajectory Xs has been saved to {output_file_observer}")
+
