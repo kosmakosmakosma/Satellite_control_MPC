@@ -44,7 +44,6 @@ Dd = np.array(mat_data_2['Dd'])
 # observer_poles = np.linalg.eigvals(Ad - L @ Cd)
 # print("Poles of A - LC:", observer_poles)
 
-
 A_tilda = np.block([
     [Ad, np.zeros_like(Ad)],
     [np.zeros_like(Ad), Ad - L @ Cd]
@@ -54,6 +53,7 @@ B_tilda = np.block([
     [Bd],
     [Bd]
 ])
+
 
 #A_tilda = Ad
 #B_tilda = Bd

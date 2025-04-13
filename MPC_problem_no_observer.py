@@ -52,12 +52,14 @@ Dd = np.array(mat_data_2['Dd'])
 A_tilda = Ad
 B_tilda = Bd
 
-Q = np.eye(dim_x_dyn)
-R = np.eye(dim_u)
+Q = 1*np.eye(dim_x_dyn)
+R = 1*np.eye(dim_u)
+#R = 10*np.matrix([[1, 0, 1], [0, 1, 0], [1, 0, 1]])
 
 # Solve discrete ARE: P = solve_discrete_are(A, B, Q, R)
 P, _, K = dare(Ad, Bd, Q, R)
 K = -K
+
 
 # Define constraints.
 #x_max = 10000000
@@ -70,7 +72,7 @@ x0 = np.array([100, -100, 30, 2, 1, 1])  # Initial state
 
 x_ub =  np.array([200, 200, 150, 10, 10, 10])  # Position and velocity upper constraints
 x_lb = -x_ub
-u_ub = np.array([0.5, 0.5, 0.5])     # Acceleration upper constraints. Slightly unrealistic but for testing purposes
+u_ub = 1*np.array([0.5, 0.5, 0.5])     # Acceleration upper constraints. Slightly unrealistic but for testing purposes
 u_lb = -u_ub
 
 # Calculate the terminal set X_f
@@ -78,7 +80,7 @@ c_max =  calculate_ellipsoid(u_ub, x_ub, P, K, dim_x_dyn, dim_u)
 #c_max = 10
 print("c_max: ", c_max)
 
-N = 50       # MPC horizon length
+N = 50  # MPC horizon length
 
 def solve_mpc(dim_x, dim_u, N, x0, Ad, Bd, Cd, Dd, Q, R, P, c_max):
     # ==============================
@@ -164,13 +166,80 @@ def plot_results(Xs, Us, dim_x, dim_u):
 
     plt.tight_layout()
     plt.show()
-Xs, Us = solve_mpc(dim_x, dim_u, N, x0, A_tilda, B_tilda, Cd, Dd, Q, R, P, c_max)
-plot_results(Xs, Us, dim_x, dim_u)
+# Xs, Us = solve_mpc(dim_x, dim_u, N, x0, A_tilda, B_tilda, Cd, Dd, Q, R, P, c_max)
+# plot_results(Xs, Us, dim_x, dim_u)
+
+simulation_length = 50
+x_simulated = np.zeros((simulation_length, dim_x, 3))
+u_simulated = np.zeros((simulation_length, dim_u, 3))
+x0_2 = x0.copy()
+x0_05 = x0.copy()
+for i in range(simulation_length):
+    _, u_bar_cd = solve_mpc(dim_x, dim_u, N, x0, A_tilda, B_tilda, Cd, Dd, Q, R, P, c_max)
+    # Solve DARE to get the LQR solution
+    _, _, K_lqr = dare(A_tilda, B_tilda, Q, R)
+    K_lqr = -K_lqr
+
+    # Compute the LQR control input
+    u_bar_cd_2 = K_lqr @ x0_2
+    # Bound u_bar_cd_2 by u_ub and u_lb
+    u_bar_cd_2 = np.clip(u_bar_cd_2, u_lb, u_ub)
+
+    x0 = np.dot(A_tilda, x0) + np.dot(B_tilda, u_bar_cd[0, :].T)
+    x0_2 = np.dot(A_tilda, x0_2) + np.dot(B_tilda, u_bar_cd_2)
+    # x0 = np.dot(A_tilda, x0) + np.dot(B_tilda, u_bar_cd[0,:].T)
+    x_simulated[i] = np.column_stack((x0, x0_2, x0_05))
+    #u_simulated[i] = u_bar_cd[0,:]
 
 # Export Xs to a file for later use
 
+# Calculate Euclidean distances along the second axis for x_simulated and u_simulated
+x_distances_distances = np.linalg.norm(x_simulated[:, :3, 0], axis=1)
+x_distances_distances_2 = np.linalg.norm(x_simulated[:, :3, 1], axis=1)
+#x_distances_distances_05 = np.linalg.norm(x_simulated[:, :3, 2], axis=1)
 
-output_file = script_dir + '/Xs_data_.npy'
-np.save(output_file, Xs)
-print(f"Optimal state trajectory Xs has been saved to {output_file}")
+#x_velocities_distances = np.linalg.norm(x_simulated[:, 3:6], axis=1)
+#u_distances = np.linalg.norm(u_simulated, axis=1)
+
+# Save the distances to files for later use
+# x_distances_file = script_dir + '/x_distances.npy'
+# u_distances_file = script_dir + '/u_distances.npy'
+# np.save(x_distances_file, x_distances)
+# np.save(u_distances_file, u_distances)
+
+# print(f"Euclidean distances for x_simulated saved to {x_distances_file}")
+# print(f"Euclidean distances for u_simulated saved to {u_distances_file}")
+
+# Plot the Euclidean distances for x_simulated and u_simulated
+
+# plt.figure(figsize=(4, 2))
+# time_steps = np.arange(simulation_length)
+
+# plt.plot(time_steps, x_distances_distances, label="MPC")
+# plt.plot(time_steps, x_distances_distances_2, label="LQR")
+# #plt.plot(time_steps, x_distances_distances_05, label="N = 25", marker='^')
+
+# plt.title("Euclidean Distances of x_simulated")
+# plt.xlabel("Time step")
+# plt.ylabel("Euclidean Distance")
+# plt.legend()
+# plt.tight_layout()
+# plt.show()
+
+# Plot the first three states of x_simulated[:, :3, 0]
+time_steps = np.arange(simulation_length)
+plt.figure(figsize=(4, 4))
+
+for i in range(3):  # Plot the first three states
+    plt.plot(time_steps, x_simulated[:, i, 0], label=f"x[{i}] (MPC)")
+
+#plt.title("State Trajectories (First Three States) for x_simulated[:, :3, 0]")
+plt.xlabel("Time step")
+plt.ylabel("State Value")
+plt.legend()
+plt.tight_layout()
+plt.show()
+# output_file = script_dir + '/Xs_data_.npy'
+# np.save(output_file, Xs)
+# print(f"Optimal state trajectory Xs has been saved to {output_file}")
 

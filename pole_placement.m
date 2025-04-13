@@ -28,18 +28,25 @@ Ts = 1; % Replace with your desired sampling time
 % Transform the continuous system to a discrete system using the Tustin method
 sys_c = ss(Ac, Bc, Cc, 0); % Continuous-time state-space system
 % Compute the natural frequencies of the continuous system
-% eigenvalues = eig(Ac);
-% natural_frequencies = abs(imag(eigenvalues)); % Extract the imaginary parts
-% omega_n = max(natural_frequencies);
+eigenvalues = eig(Ac);
+natural_frequencies = abs(imag(eigenvalues)); % Extract the imaginary parts
+omega_n = max(natural_frequencies);
 
-% Ts = pi / (omega_n * 8); % Define the sampling time
-% disp(['Sampling time Ts: ', num2str(Ts)]);
+Ts = pi / (omega_n * 8); % Define the sampling time
+disp(['Sampling time Ts: ', num2str(Ts)]);
+Ts = 1;
+disp(['Sampling time Ts: ', num2str(Ts)]);
 
 sysd = c2d(sys_c, Ts, 'zoh');
 [Ad, Bd, Cd, Dd] = ssdata(sysd); % Discrete-time state-space matrices
 
 % Save the discrete-time state-space matrices Ad, Bd, Cd, and Dd as a .mat file
 save('state_space_matrices.mat', 'Ad', 'Bd', 'Cd', 'Dd');
+
+% Plot Bode plot of the continuous-time system
+% figure;
+% bode(sys_c, sysd);
+
 
 % Load the state-space matrices from the .pkl file
 % filename = 'state_space_matrices.pkl'; % Replace with the correct path to your .pkl file
