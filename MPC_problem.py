@@ -71,7 +71,7 @@ print("c_max: ", c_max)
 # Generate a random point within X_f
 #x0 = get_point_within_ellipsoid(P, c_max, dim_x, x_max)
 #print("x0: ", x0)
-x0 = np.array([100000, 1000, 1000, 20, 20, 20, 100000, 1000, 1000, 20, 20, 20])  # Example initial state
+x0 = np.array([100000, 1000, 1000, 20, 20, 20, 0, 0, 0, 0, 0, 0])  # Example initial state
 # Constraints for states and inputs (example bounds)
 x_lb = -x_max * np.ones(dim_x)
 x_ub =  x_max * np.ones(dim_x)
