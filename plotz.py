@@ -33,4 +33,4 @@ for i in range(dim_x):
     plt.legend()
 
 plt.tight_layout()
-plt.show()
+plt.show()k

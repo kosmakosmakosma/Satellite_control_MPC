@@ -80,7 +80,7 @@ c_max =  calculate_ellipsoid(u_ub, x_ub, P, K, dim_x_dyn, dim_u)
 #c_max = 10
 print("c_max: ", c_max)
 
-N = 50  # MPC horizon length
+N = 20  # MPC horizon length
 
 def solve_mpc(dim_x, dim_u, N, x0, Ad, Bd, Cd, Dd, Q, R, P, c_max):
     # ==============================
@@ -116,7 +116,7 @@ def solve_mpc(dim_x, dim_u, N, x0, Ad, Bd, Cd, Dd, Q, R, P, c_max):
 
     # Terminal constraints:
     # (a) Terminal state constraint: the terminal state must lie within the ellipsoidal terminal set.
-    constraints.append(cp.quad_form(x_var[N][:6], P) <= c_max)
+    #constraints.append(cp.quad_form(x_var[N][:6], P) <= c_max)
     # (b) Optional: Add a terminal cost term. Here we use the same matrix P as the terminal weight.
     cost += cp.quad_form(x_var[N][:6], P)
 
@@ -135,10 +135,59 @@ def solve_mpc(dim_x, dim_u, N, x0, Ad, Bd, Cd, Dd, Q, R, P, c_max):
     # Check terminal constraint value (should be <= c_max)
     #print("Terminal state within Xf: ", check_point_within_ellipsoid(P, c_max, x_var[N][:6].value))
     return Xs, Us
+def run_mpc_loop(dim_x, dim_u, N, x0, A_tilda, B_tilda, Cd, Dd, Q, R, P, c_max, num_steps):
+    """
+    Runs the MPC loop for a given number of steps. At each step, it solves the MPC problem,
+    applies the first control input to the system, and updates the state.
 
-def plot_results(Xs, Us, dim_x, dim_u):
+    Args:
+        dim_x: Dimension of the state vector.
+        dim_u: Dimension of the control input vector.
+        N: MPC horizon length.
+        x0: Initial state vector.
+        A_tilda: System dynamics matrix.
+        B_tilda: Input matrix.
+        Cd, Dd: Not used in this implementation but kept for compatibility.
+        Q: State cost matrix.
+        R: Input cost matrix.
+        P: Terminal cost matrix.
+        c_max: Terminal set constraint.
+        num_steps: Number of steps to run the MPC loop.
+
+    Returns:
+        Xs_all: List of all state trajectories over the MPC loop.
+        Us_all: List of all control inputs over the MPC loop.
+    """
+    Xs_all = []
+    Us_all = []
+    x_current = x0
+
+    for step in range(num_steps):
+        print(f"Step {step + 1}/{num_steps}")
+        print("Current state:", x_current)
+        # Solve the MPC problem
+        Xs, Us = solve_mpc(dim_x, dim_u, N, x_current, A_tilda, B_tilda, Cd, Dd, Q, R, P, c_max)
+
+        # Store the results
+        Xs_all.append(x_current)
+        Us_all.append(Us[0])
+
+        # Apply the first control input to the system dynamics
+        u_current = Us[0]
+        x_next = A_tilda @ x_current + B_tilda @ u_current
+
+        # Update the current state
+        x_current = x_next
+
+    return Xs_all, Us_all
+def plot_results(Xs, Us, dim_x, dim_u, num_steps):
+    # Ensure Xs is a numpy array with the correct shape
+    Xs = np.array(Xs)
+    if Xs.shape != (num_steps, dim_x):
+        raise ValueError(f"Expected Xs to have shape ({num_steps}, {dim_x}), but got {Xs.shape}")
+
     # Plot each state value as a subplot
-    time_steps = np.arange(N + 1)
+    time_steps = np.arange(num_steps)
     plt.figure(figsize=(12, 8))
 
     for i in range(dim_x):
@@ -151,25 +200,18 @@ def plot_results(Xs, Us, dim_x, dim_u):
         if i == dim_x - 1:
             plt.xlabel("Time step")
 
-        # Mark the point where x^T P x < c_max with a vertical dashed line
-        label_added = False
-        for t in range(N + 1):
-            if Xs[t][:6].T @ P @ Xs[t][:6] < c_max:
-                if not label_added and i == 0:  # Add label only in the first subplot
-                    plt.axvline(x=t, color='r', linestyle='--', label="State within X_f")
-                    label_added = True
-                else:
-                    plt.axvline(x=t, color='r', linestyle='--')
-                break  # Mark the first occurrence only
-
-        plt.legend()  # Ensure the legend is added after marking the line
-
     plt.tight_layout()
     plt.show()
 # Xs, Us = solve_mpc(dim_x, dim_u, N, x0, A_tilda, B_tilda, Cd, Dd, Q, R, P, c_max)
 # plot_results(Xs, Us, dim_x, dim_u)
+simulation_length = 100
 
-simulation_length = 50
+Xs, Us = run_mpc_loop(dim_x, dim_u, N, x0, A_tilda, B_tilda, Cd, Dd, Q, R, P, c_max, simulation_length)
+
+output_file = script_dir + '/Xs_data_.npy'
+np.save(output_file, Xs)
+print(f"Optimal state trajectory Xs has been saved to {output_file}")
+
 x_simulated = np.zeros((simulation_length, dim_x, 3))
 u_simulated = np.zeros((simulation_length, dim_u, 3))
 x0_2 = x0.copy()
@@ -212,33 +254,33 @@ x_distances_distances_2 = np.linalg.norm(x_simulated[:, :3, 1], axis=1)
 
 # Plot the Euclidean distances for x_simulated and u_simulated
 
-# plt.figure(figsize=(4, 2))
-# time_steps = np.arange(simulation_length)
-
-# plt.plot(time_steps, x_distances_distances, label="MPC")
-# plt.plot(time_steps, x_distances_distances_2, label="LQR")
-# #plt.plot(time_steps, x_distances_distances_05, label="N = 25", marker='^')
-
-# plt.title("Euclidean Distances of x_simulated")
-# plt.xlabel("Time step")
-# plt.ylabel("Euclidean Distance")
-# plt.legend()
-# plt.tight_layout()
-# plt.show()
-
-# Plot the first three states of x_simulated[:, :3, 0]
+plt.figure(figsize=(4, 2))
 time_steps = np.arange(simulation_length)
-plt.figure(figsize=(4, 4))
 
-for i in range(3):  # Plot the first three states
-    plt.plot(time_steps, x_simulated[:, i, 0], label=f"x[{i}] (MPC)")
+plt.plot(time_steps, x_distances_distances, label="MPC")
+plt.plot(time_steps, x_distances_distances_2, label="LQR")
+ #plt.plot(time_steps, x_distances_distances_05, label="N = 25", marker='^')
 
-#plt.title("State Trajectories (First Three States) for x_simulated[:, :3, 0]")
+plt.title("Euclidean Distances of x_simulated")
 plt.xlabel("Time step")
-plt.ylabel("State Value")
+plt.ylabel("Euclidean Distance")
 plt.legend()
 plt.tight_layout()
 plt.show()
+
+# Plot the first three states of x_simulated[:, :3, 0]
+#time_steps = np.arange(simulation_length)
+#plt.figure(figsize=(4, 4))
+
+#for i in range(3):  # Plot the first three states
+#    plt.plot(time_steps, x_simulated[:, i, 0], label=f"x[{i}] (MPC)")
+
+#plt.title("State Trajectories (First Three States) for x_simulated[:, :3, 0]")
+#plt.xlabel("Time step")
+#plt.ylabel("State Value")
+#plt.legend()
+#plt.tight_layout()
+#plt.show()
 # output_file = script_dir + '/Xs_data_.npy'
 # np.save(output_file, Xs)
 # print(f"Optimal state trajectory Xs has been saved to {output_file}")

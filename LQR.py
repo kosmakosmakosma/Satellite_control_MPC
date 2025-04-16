@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from control import dare
 from scipy.linalg import solve_discrete_are
 from invariant_set import calculate_ellipsoid, get_point_within_ellipsoid, check_point_within_ellipsoid
+from MPC_problem import solve_mpc
 from control import place
 import sys
 import os
